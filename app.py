@@ -182,41 +182,18 @@ with tab3:
         Used the original GDF files and extract the signals and events.
     """)
 
-    st.markdown("""<h3 style='text-align: center;'>Research Paper</h3>""", unsafe_allow_html=True)
+    st.markdown("""### Research Paper""")
     
    
     with st.container():
-       
-        st.markdown(
-            """
-            <style>
-                .pdf-container {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    width: 100%;
-                }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        
+               
         pdf_file_path = "desc_2a.pdf"
-        
+
         try:
             with open(pdf_file_path, "rb") as f:
                 base64_pdf = base64.b64encode(f.read()).decode('utf-8')
             
-            pdf_display = f"""
-            <div class="pdf-container">
-                <iframe 
-                    src="data:application/pdf;base64,{base64_pdf}" 
-                    width="700" 
-                    height="700" 
-                    style="border:none; margin:auto;"
-                ></iframe>
-            </div>
-            """
+            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="800" height="700" type="application/pdf">'
             st.markdown(pdf_display, unsafe_allow_html=True)
             
         except FileNotFoundError:
