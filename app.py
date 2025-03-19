@@ -186,20 +186,30 @@ with tab3:
     
    
     with st.container():
-               
         pdf_file_path = "desc_2a.pdf"
 
         try:
-            with open(pdf_file_path, "rb") as f:
-                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            with open(pdf_file_path, "rb") as pdf_file:
+                PDFbyte = pdf_file.read()
             
-            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="800" height="700" type="application/pdf">'
+           
+            st.download_button(
+                    label="Download",
+                    data=PDFbyte,
+                    file_name="desc_2a.pdf",
+                    mime="application/pdf",
+                    type="primary"
+                )
+            
+            
+            base64_pdf = base64.b64encode(PDFbyte).decode('utf-8')
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
             st.markdown(pdf_display, unsafe_allow_html=True)
             
         except FileNotFoundError:
             st.error("PDF file not found. Please check if the file exists in the correct location.")
         except Exception as e:
-            st.error(f"Error displaying PDF: {str(e)}")
+            st.error(f"Error handling PDF: {str(e)}")
 
 
     st.write("##")       
