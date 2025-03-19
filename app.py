@@ -242,7 +242,7 @@ with tab3:
     
         try:
             image = Image.open("mi_paradigm.png")
-            st.image(image, caption="Motor Imagery Paradigm", use_container_width=True)
+            st.image(image, caption="Motor Imagery Paradigm")
         except FileNotFoundError:
             st.error("Image 'mi_paradigm.png' not found. Please check if the file exists.")
         except Exception as e:
@@ -257,7 +257,7 @@ with tab3:
 
         try:
             image = Image.open("event_table.png")
-            st.image(image, caption="Event Code Table", width=700, use_container_width=False)
+            st.image(image, caption="Event Code Table", width=700)
         except FileNotFoundError:
             st.error("Image 'event_table.png' not found. Please check if the file exists.")
         except Exception as e:
