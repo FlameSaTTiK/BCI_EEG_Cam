@@ -83,7 +83,7 @@ with open(f"{subject}.npz", "rb") as file:
 
 
 st.sidebar.divider()
-st.sidebar.markdown("""More Projects on [GitHub](https://github.com/rounakdey2003)""")
+st.sidebar.markdown("""More Projects on [GitHub](https://github.com/rounakdey2003/CollegeProject)""")
 
 with st.container(border=True):
     st.markdown("""
