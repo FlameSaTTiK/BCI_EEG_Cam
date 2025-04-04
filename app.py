@@ -6,6 +6,8 @@ import time
 from PIL import Image
 import base64
 from io import BytesIO
+import cv2
+from camera_utils import MotionDetector
 
 class MotorImageryDataset:
     def __init__(self, dataset='A01T.npz'):
@@ -13,14 +15,13 @@ class MotorImageryDataset:
             dataset += '.npz'
 
         self.data = np.load(dataset)
-        self.Fs = 250  # 250Hz from original paper
+        self.Fs = 250
         self.raw = self.data['s'].T
         self.events_type = self.data['etyp'].T
         self.events_position = self.data['epos'].T
         self.events_duration = self.data['edur'].T
         self.artifacts = self.data['artifacts'].T
 
-        # Types of motor imagery
         self.mi_types = {769: 'left', 770: 'right',
                         771: 'foot', 772: 'tongue', 783: 'unknown'}
 
@@ -83,7 +84,7 @@ with open(f"{subject}.npz", "rb") as file:
 
 
 st.sidebar.divider()
-st.sidebar.markdown("""More Projects on [GitHub](https://github.com/rounakdey2003/CollegeProject)""")
+st.sidebar.markdown("""View Project: [GitHub](https://github.com/rounakdey2003/CollegeProject)""")
 
 with st.container(border=True):
     st.markdown("""
@@ -98,12 +99,12 @@ with st.container(border=True):
 dataset = MotorImageryDataset(subject)
 trials, classes = dataset.get_trials_from_channels([7, 9, 11])
 
-tab1, tab2, tab3 = st.tabs(["Brain Activity Map", "Brain Signals Explorer", "Readme"])
+tab1, tab2, tab3, tab4 = st.tabs(["Brain Activity Map", "Brain Signals Explorer", "Movement Detection", "Readme"])
 
 with tab1:
     with st.container(border=True):
         st.markdown("""
-        ### Explaination
+        ### Brain Activity
         - :red[**Red colors**]: Brain is very active
         - :blue[**Blue colors**]: Brain is resting
 
@@ -141,7 +142,7 @@ with tab1:
 with tab2:
     with st.container(border=True):
         st.markdown("""
-        ### Explaination
+        ### Brain Signals
         - Each bump in the line means brain sending a tiny electrical signal
         - When the line goes up and down a lot, means brain is very active
         - When the line is flatter, means brain is more relaxed
@@ -172,192 +173,240 @@ with tab2:
         )
         
         st.plotly_chart(fig2, use_container_width=True)
-    
-    
+        
 with tab3:
-    st.markdown("""
-    ### BCI Competition Dataset IV 2a
-        This is a repository for BCI Competition 2008 dataset IV 2a fixed and optimized for python and numpy. 
-        This dataset is related with motor imagery. That is only a "port" of the original dataset, 
-        Used the original GDF files and extract the signals and events.
-    """)
-
-    st.markdown("""### Research Paper""")
+    with st.container(border=True):
+        st.markdown("""
+        ### Camera-Based Movement Detection
+        This feature uses your webcam to detect body movements and shows which parts of your brain would be active during these movements.
+        
+        - **Left Hand Movement**: Activates the right side of your brain (C4)
+        - **Right Hand Movement**: Activates the left side of your brain (C3)
+        - **Head Movement**: Activates the middle of your brain (Cz)
+        """)
     
-   
-    with st.container():
-        pdf_file_path = "desc_2a.pdf"
 
-        try:
-            with open(pdf_file_path, "rb") as pdf_file:
-                PDFbyte = pdf_file.read()
+
+        example_fig = go.Figure()
+        
+        for i, region in enumerate(['C3', 'Cz', 'C4']):
+            is_active = i % 2 == 0
+            color = 'rgba(255, 0, 0, 0.7)' if is_active else 'rgba(0, 0, 255, 0.7)'
+            example_fig.add_trace(go.Scatter(
+                x=[i-0.4, i+0.4, i+0.4, i-0.4, i-0.4],
+                y=[-0.4, -0.4, 0.4, 0.4, -0.4],
+                fill="toself",
+                fillcolor=color,
+                line=dict(color='black'),
+                mode='lines',
+                name=region,
+                text=f"{region}: {'Active' if is_active else 'Resting'}",
+                hoverinfo='text'
+            ))
             
-           
-            st.download_button(
-                    label="Download",
-                    data=PDFbyte,
-                    file_name="desc_2a.pdf",
-                    mime="application/pdf",
-                    type="primary"
+            example_fig.add_annotation(
+                x=i, y=0,
+                text=region,
+                showarrow=False,
+                font=dict(color='white', size=14)
+            )
+        
+        example_fig.update_layout(
+            title="Example: Brain Activity Based on Movement",
+            xaxis=dict(showticklabels=False, range=[-1, 3]),
+            yaxis=dict(showticklabels=False, range=[-1, 1]),
+            showlegend=False,
+            height=300
+        )
+        
+        st.plotly_chart(example_fig, use_container_width=True)
+
+    if 'camera_running' not in st.session_state:
+        st.session_state.camera_running = False
+        st.session_state.motion_detector = None
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if not st.session_state.camera_running:
+            if st.button("Start Camera", type="primary"):
+                try:
+                    st.session_state.motion_detector = MotionDetector()
+                    if st.session_state.motion_detector.start_camera():
+                        st.session_state.camera_running = True
+                        st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Error starting camera: {str(e)}")
+        else:
+            if st.button("Stop Camera", type="primary"):
+                if st.session_state.motion_detector:
+                    st.session_state.motion_detector.stop_camera()
+                st.session_state.camera_running = False
+                st.experimental_rerun()
+    
+    if st.session_state.camera_running and st.session_state.motion_detector:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            camera_placeholder = st.empty()
+        
+        with col2:
+            brain_activity_placeholder = st.empty()
+            st.markdown("### Real-time Brain Signals")
+            c3_signal_placeholder = st.empty()
+            cz_signal_placeholder = st.empty()
+            c4_signal_placeholder = st.empty()
+        
+        stop_button_placeholder = st.empty()
+        
+        try:
+            while st.session_state.camera_running:
+                frame = st.session_state.motion_detector.get_frame()
+                if frame is None:
+                    st.error("Failed to capture frame from camera")
+                    break
+                
+                processed_frame, _ = st.session_state.motion_detector.detect_motion(frame)
+                
+                active_brain_regions = st.session_state.motion_detector.get_active_brain_regions()
+                
+                rgb_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                
+                camera_placeholder.image(rgb_frame, channels="RGB", use_column_width=True)
+                
+                brain_fig = go.Figure()
+                
+                for i, region in enumerate(['C3', 'Cz', 'C4']):
+                    info = active_brain_regions[region]
+                    color = 'rgba(255, 0, 0, 0.7)' if info['active'] else 'rgba(0, 0, 255, 0.7)'
+                    brain_fig.add_trace(go.Scatter(
+                        x=[i-0.4, i+0.4, i+0.4, i-0.4, i-0.4],
+                        y=[-0.4, -0.4, 0.4, 0.4, -0.4],
+                        fill="toself",
+                        fillcolor=color,
+                        line=dict(color='black'),
+                        mode='lines',
+                        name=region,
+                        text=f"{region}: {'Active' if info['active'] else 'Resting'}",
+                        hoverinfo='text'
+                    ))
+                    
+                    brain_fig.add_annotation(
+                        x=i, y=0,
+                        text=region,
+                        showarrow=False,
+                        font=dict(color='white', size=14)
+                    )
+                    
+                    if info['active']:
+                        brain_fig.add_annotation(
+                            x=i, y=0.6,
+                            text=f"Active: {info['body_part']}",
+                            showarrow=False,
+                            font=dict(color='black', size=12),
+                            bgcolor='rgba(255, 255, 255, 0.7)'
+                        )
+                brain_fig.update_layout(
+                    title="Brain Activity Based on Movement",
+                    xaxis=dict(showticklabels=False, range=[-1, 3]),
+                    yaxis=dict(showticklabels=False, range=[-1, 1]),
+                    showlegend=False,
+                    height=300,
+                    margin=dict(l=20, r=20, t=40, b=20)
                 )
-            
-            
-            base64_pdf = base64.b64encode(PDFbyte).decode('utf-8')
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-            
-        except FileNotFoundError:
-            st.error("PDF file not found. Please check if the file exists in the correct location.")
+                
+                brain_activity_placeholder.plotly_chart(brain_fig, use_container_width=True)
+                
+                region_idx = {'C3': 0, 'Cz': 1, 'C4': 2}
+                region_titles = {'C3': 'Left Brain (C3)', 'Cz': 'Middle Brain (Cz)', 'C4': 'Right Brain (C4)'}
+                
+                c3_info = active_brain_regions['C3']
+                c3_signal_data = trials[region_idx['C3']][0]
+                c3_fig = go.Figure()
+                
+                c3_signal_segment = st.session_state.motion_detector.generate_real_time_signal('C3', c3_signal_data, num_points=100)
+                
+                c3_fig.add_trace(go.Scatter(
+                    y=c3_signal_segment,
+                    mode='lines',
+                    name='C3',
+                    line=dict(color='red' if c3_info['active'] else 'blue', width=2)
+                ))
+                
+                c3_fig.update_layout(
+                    title=region_titles['C3'],
+                    yaxis_title="Signal Strength",
+                    xaxis_title="Time",
+                    height=150,
+                    margin=dict(l=20, r=20, t=40, b=20)
+                )
+                
+                cz_info = active_brain_regions['Cz']
+                cz_signal_data = trials[region_idx['Cz']][0]
+                cz_fig = go.Figure()
+                
+                cz_signal_segment = st.session_state.motion_detector.generate_real_time_signal('Cz', cz_signal_data, num_points=100)
+                
+                cz_fig.add_trace(go.Scatter(
+                    y=cz_signal_segment,
+                    mode='lines',
+                    name='Cz',
+                    line=dict(color='red' if cz_info['active'] else 'blue', width=2)
+                ))
+                
+                cz_fig.update_layout(
+                    title=region_titles['Cz'],
+                    yaxis_title="Signal Strength",
+                    xaxis_title="Time",
+                    height=150,
+                    margin=dict(l=20, r=20, t=40, b=20)
+                )
+                
+                c4_info = active_brain_regions['C4']
+                c4_signal_data = trials[region_idx['C4']][0]
+                c4_fig = go.Figure()
+                
+                c4_signal_segment = st.session_state.motion_detector.generate_real_time_signal('C4', c4_signal_data, num_points=100)
+                
+                c4_fig.add_trace(go.Scatter(
+                    y=c4_signal_segment,
+                    mode='lines',
+                    name='C4',
+                    line=dict(color='red' if c4_info['active'] else 'blue', width=2)
+                ))
+                
+                c4_fig.update_layout(
+                    title=region_titles['C4'],
+                    yaxis_title="Signal Strength",
+                    xaxis_title="Time",
+                    height=150,
+                    margin=dict(l=20, r=20, t=40, b=20)
+                )
+                
+                c3_signal_placeholder.plotly_chart(c3_fig, use_container_width=True)
+                cz_signal_placeholder.plotly_chart(cz_fig, use_container_width=True)
+                c4_signal_placeholder.plotly_chart(c4_fig, use_container_width=True)
+                
+                current_time = int(time.time() * 1000)
+                if stop_button_placeholder.button("Stop Camera", key=f"stop_in_loop_{current_time}"):
+                    st.session_state.camera_running = False
+                    if st.session_state.motion_detector:
+                        st.session_state.motion_detector.stop_camera()
+                    break
+                
+                time.sleep(0.1)
         except Exception as e:
-            st.error(f"Error handling PDF: {str(e)}")
-
-
-    st.write("##")       
+            st.error(f"Error in camera processing: {str(e)}")
+            st.session_state.camera_running = False
+            if st.session_state.motion_detector:
+                st.session_state.motion_detector.stop_camera()
     
-    with st.container(border=True):  
-        st.markdown("""
-
-        ## How to use
-
-        In that paper the authors explain the adquisition process. 
-        The dataset contain data about motor imagery of four different motor imagery tasks, 
-        namely the imagination of movement of the left hand (class 1),right hand (class 2), both feet (class 3), and tongue (class 4).
-
-        The form of each motor imagery task is like the figure below.
-        """)
-
+    if not st.session_state.camera_running:
+        st.info("Click 'Start Camera' to begin movement detection")
+        
+        
     
-        try:
-            image = Image.open("mi_paradigm.png")
-            st.image(image, caption="Motor Imagery Paradigm")
-        except FileNotFoundError:
-            st.error("Image 'mi_paradigm.png' not found. Please check if the file exists.")
-        except Exception as e:
-            st.error(f"Error displaying image: {str(e)}")
-
-
-        st.markdown("""
-        Exist 9 subjects and for each subject one run that consists of 48 trials (12 for each of the four possible classes), yielding a total of 288 trials per session.
-
-        Each event (e.g. Start of Trial) is coded using the below table.
-        """)
-
-        try:
-            image = Image.open("event_table.png")
-            st.image(image, caption="Event Code Table", width=700)
-        except FileNotFoundError:
-            st.error("Image 'event_table.png' not found. Please check if the file exists.")
-        except Exception as e:
-            st.error(f"Error displaying image: {str(e)}")
-
-
-        st.markdown("""
-
-        ### About this work
-
-        The current fileformat of these files are ".npz". Below you can see an example.
-
-        ```python
-        import numpy as np
-        data = np.load('A01T.npz')  # to load the data of the subject 1
-        ```
-
-        The names convention used for each datafile:
-
-        -   's': contains all the raw data in a numpy array format.
-        -   'etyp': have all the events and its determinated type.
-        -   'epos': contains all the events position and its index is related with etyp and edur.
-        -   'edur': contains all the events duration.
-
-
-        ```python
-        from matplotlib import pyplot as plt
-        import numpy as np
-        data = np.load('A01T.npz')  # contains the data of the subject 1
-        signal = data['s']
-        # The index 7 represent the channel C3, for the info of each channel read the original paper.
-        channelC3 = signal[:, 7]
-
-        x = 7  # this is the event number
-
-        # Extract the type of the event 7, in this case the type is 768 (in the table this is a Start of a trial event).
-        etype = data['etyp'].T[0, x]
-        # This is the position of the event in the raw signal
-        epos = data['epos'].T[0, x]
-        edur = data['edur'].T[0, x]  # And this is the duration of this event
-
-        # Then extract the signal related the event selected.
-        trial = channelC3[epos:epos+edur]
-
-        # The selected event type is 768 (Start of a trial) , see the array of event types ('etype')
-        # observe the next event is 772 (Cue onset tongue) with that deduce the class of
-        # this trial: Tongue Imagery Task.
-
-        # Then for the class of this trial (7), need to read the type of the inmediate next event
-        trial_type = data['etyp'].T[0, x+1]
-
-        # For the order of this events, see the data['etyp'] array.
-
-        # plot this event with matplotlib (or plotly to make interactive)
-        plt.plot(trial)
-        plt.show()
-        ```
-
-        The result of this code is the plot of the one trial.
-
-        ### Complex example
-
-        Create a class with a method for extract all trials of one subject (AT01 in the example). Note that try catch is here because some trial have a reject event, then with this try/catch, select only valid trials.
-
-        ```python
-        class MotorImageryDataset:
-            def __init__(self, dataset='A01T.npz'):
-                if not dataset.endswith('.npz'):
-                    dataset += '.npz'
-
-                self.data = np.load('A01T.npz')
-
-                self.Fs = 250 # 250Hz from original paper
-
-                # keys of data ['s', 'etyp', 'epos', 'edur', 'artifacts']
-
-                self.raw = self.data['s'].T
-                self.events_type = self.data['etyp'].T
-                self.events_position = self.data['epos'].T
-                self.events_duration = self.data['edur'].T
-                self.artifacts = self.data['artifacts'].T
-
-                # Types of motor imagery
-                self.mi_types = {769: 'left', 770: 'right', 771: 'foot', 772: 'tongue', 783: 'unknown'}
-
-            def get_trials_from_channel(self, channel=7):
-
-                # Channel default is C3
-
-                startrial_code = 768
-                starttrial_events = self.events_type == startrial_code
-                idxs = [i for i, x in enumerate(starttrial_events[0]) if x]
-
-                trials = []
-                classes = []
-                for index in idxs:
-                    try:
-                        type_e = self.events_type[0, index+1]
-                        class_e = self.mi_types[type_e]
-                        classes.append(class_e)
-
-                        start = self.events_position[0, index]
-                        stop = start + self.events_duration[0, index]
-                        trial = self.raw[channel, start:stop]
-                        trials.append(trial)
-
-                    except:
-                        continue
-
-                return trials, classes
-
-        datasetA1 = MotorImageryDataset()
-        trials, classes = datasetA1.get_trials_from_channel()
-        # trials contains the N valid trials, and clases its related class.
-        ```
-        """)
+    
+with tab4:
+    with open('README.md', 'r') as file:
+        readme_content = file.read()
+        st.markdown(readme_content)
