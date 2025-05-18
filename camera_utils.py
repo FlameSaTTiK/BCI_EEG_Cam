@@ -10,7 +10,6 @@ class MotionDetector:
         self.body_regions = {
             'left_hand': {'region': (0.0, 0.3, 0.5, 0.7), 'brain_area': 'C4', 'description': 'Right side of brain (C4)'},
             'right_hand': {'region': (0.5, 0.3, 1.0, 0.7), 'brain_area': 'C3', 'description': 'Left side of brain (C3)'},
-            'foot': {'region': (0.25, 0.7, 0.75, 1.0), 'brain_area': 'Cz', 'description': 'Middle of brain (Cz)'},
             'head': {'region': (0.25, 0.0, 0.75, 0.3), 'brain_area': 'Cz', 'description': 'Middle of brain (Cz)'}
         }
         self.active_regions = {region: False for region in self.body_regions}

@@ -251,10 +251,10 @@ with tab3:
         
         with col2:
             brain_activity_placeholder = st.empty()
-            st.markdown("### Real-time Brain Signals")
-            c3_signal_placeholder = st.empty()
-            cz_signal_placeholder = st.empty()
-            c4_signal_placeholder = st.empty()
+        st.markdown("### Real-time Brain Signals")
+        c3_signal_placeholder = st.empty()
+        cz_signal_placeholder = st.empty()
+        c4_signal_placeholder = st.empty()
         
         stop_button_placeholder = st.empty()
         
