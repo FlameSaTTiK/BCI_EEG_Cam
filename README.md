@@ -197,4 +197,4 @@ Start --> Load Dataset --> [Files Loaded Successfully?]
 - Plotly for interactive visualizations
 
 ## License
-This project is part of a college project by Rounak Dey.
+This project is part of a college project.
